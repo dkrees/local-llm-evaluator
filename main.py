@@ -1,56 +1,28 @@
 from test_subject import test_model
+from utility import parse_input_data
 import statistics
 import csv
 import importlib
+import yaml
 from evaluators.evaluation_types import EvaluationType
 
-# CONFIG
-subject_model = "lfm2-1.2b"
-evaluator = "openai"         # openai | anthropic
-evaluator_model = "gpt-4o-mini"            # ie. gpt-4o-mini, claude-sonnet-4-20250514
-number_of_tests = 3
-dataset = "test_data/summarise_1.txt"
-evaluation_type = EvaluationType.SUMMARISE
-
-
-def parse_input_data(filename):
-    """Parse different file formats: Q&A pairs, Q-only, or plain text."""
-    qa_pairs = []
-
-    with open(filename, "r") as f:
-        content = f.read().strip()
-
-    filename_lower = filename.lower()
-
-    if 'summarise_' in filename_lower :
-        qa_pairs.append({"question": content, "answer": None})
-    elif 'questions_' in filename_lower:
-         # Handle Q&A or Q-only format
-        blocks = content.split('\n\n')
-
-        for block in blocks:
-            lines = block.strip().split('\n')
-
-            if len(lines) >= 2:
-                question_line = lines[0]
-                answer_line = lines[1]
-
-                # Extract question and answer text
-                if question_line.startswith('Q: ') and answer_line.startswith('A: '):
-                    question = question_line[3:]  # Remove 'Q: '
-                    answer = answer_line[3:]      # Remove 'A: '
-                    qa_pairs.append({"question": question, "answer": answer})
-            elif len(lines) == 1:
-                question_line = lines[0]
-
-                # Handle question-only format
-                if question_line.startswith('Q: '):
-                    question = question_line[3:]  # Remove 'Q: '
-                    qa_pairs.append({"question": question, "answer": None})
-
-    return qa_pairs
+def load_config(config_path='config.yml'):
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+    # Convert evaluation_type string to enum
+    config['evaluation_type'] = EvaluationType[config['evaluation_type']]
+    return config
 
 def main():
+    # Load configuration
+    config = load_config()
+    subject_models = config['subject_models']
+    evaluator = config['evaluator']
+    evaluator_model = config['evaluator_model']
+    number_of_tests = config['number_of_tests']
+    dataset = config['dataset']
+    evaluation_type = config['evaluation_type']
+
     # Dynamically import the evaluator based on evaluation_type
     try:
         evaluator_module = importlib.import_module(f'evaluators.{evaluation_type.value}')
@@ -63,128 +35,175 @@ def main():
     # Collect all test results for CSV export
     csv_data = []
 
-    # Lists to calculate overall averages
-    all_evaluation_scores = []
-    all_response_times = []
-    all_completion_tokens = []
-    all_total_tokens = []
+    # Dictionary to store metrics per model
+    model_metrics = {}
 
-    for i, qa in enumerate(qa_pairs, 1):
-        question_evaluation_scores = []
-        question_response_times = []
-        question_completion_tokens = []
-        question_total_tokens = []
+    for m, model in enumerate(subject_models):
+        print(f"\n{'='*60}")
+        print(f"Testing Model: {model}")
+        print(f"{'='*60}")
+        
+        # Lists to calculate model-specific averages
+        model_evaluation_scores = []
+        model_response_times = []
+        model_completion_tokens = []
+        model_total_tokens = []
 
-        expected_answer = None
+        for i, qa in enumerate(qa_pairs, 1):
+            question_evaluation_scores = []
+            question_response_times = []
+            question_completion_tokens = []
+            question_total_tokens = []
 
-        for j in range(number_of_tests):
+            expected_answer = None
 
-            print(f"\nQuestion {i}, Test {j+1}: {qa['question']}")
-            if qa['answer']:
-                print(f"Expected Answer: {qa['answer']}")
-                expected_answer = qa['answer']
-            else:
-                print("Expected Answer: None (question-only dataset)")
+            for j in range(number_of_tests):
 
-            response = test_model(
-                model = subject_model,
-                evaluation_type = evaluation_type,
-                question = qa['question']
-            )
+                print(f"\nQuestion {i}, Test {j+1}: {qa['question']}")
+                if qa['answer']:
+                    print(f"Expected Answer: {qa['answer']}")
+                    expected_answer = qa['answer']
+                else:
+                    print("Expected Answer: None (question-only dataset)")
 
-            print(f"AI Answer: {response["response"]}")
-            print("-" * 50)
-            print(f"Prompt Tokens: {response["prompt_tokens"]}")
-            print(f"Completion Tokens: {response["completion_tokens"]}")
-            print(f"Total Tokens: {response["total_tokens"]}")
-            print("-" * 50)
-            print(f"Response Time: {response["response_time"]:.2f} seconds")
-            print("-" * 50)
-            print("Evaluating Response...")
+                response = test_model(
+                    model = model,
+                    evaluation_type = evaluation_type,
+                    question = qa['question']
+                )
 
-            # Evaluation
-            evaluation = evaluate(
-                evaluator=evaluator,
-                evaluator_model=evaluator_model,
-                question=qa['question'],
-                expected_answer=expected_answer,
-                answer=response["response"]
-            )
-            print(f"Evaluation Score: {evaluation}")
-            print("-" * 50)
+                print(f"AI Answer: {response["response"]}")
+                print("-" * 50)
+                print(f"Prompt Tokens: {response["prompt_tokens"]}")
+                print(f"Completion Tokens: {response["completion_tokens"]}")
+                print(f"Total Tokens: {response["total_tokens"]}")
+                print("-" * 50)
+                print(f"Response Time: {response["response_time"]:.2f} seconds")
+                print("-" * 50)
+                print("Evaluating Response...")
 
-            # Collect metrics for question-specific averages
-            question_evaluation_scores.append(float(evaluation))
-            question_response_times.append(response["response_time"])
-            question_completion_tokens.append(response["completion_tokens"])
-            question_total_tokens.append(response["total_tokens"])
+                # Evaluation
+                evaluation = evaluate(
+                    evaluator=evaluator,
+                    evaluator_model=evaluator_model,
+                    question=qa['question'],
+                    expected_answer=expected_answer,
+                    answer=response["response"]
+                )
+                print(f"Evaluation Score: {evaluation}")
+                print("-" * 50)
 
-            # Collect metrics for overall averages
-            all_evaluation_scores.append(float(evaluation))
-            all_response_times.append(response["response_time"])
-            all_completion_tokens.append(response["completion_tokens"])
-            all_total_tokens.append(response["total_tokens"])
+                # Collect metrics for question-specific averages
+                question_evaluation_scores.append(float(evaluation))
+                question_response_times.append(response["response_time"])
+                question_completion_tokens.append(response["completion_tokens"])
+                question_total_tokens.append(response["total_tokens"])
 
-            # Collect data for CSV
+                # Collect metrics for model-specific averages
+                model_evaluation_scores.append(float(evaluation))
+                model_response_times.append(response["response_time"])
+                model_completion_tokens.append(response["completion_tokens"])
+                model_total_tokens.append(response["total_tokens"])
+
+                # Collect data for CSV
+                csv_data.append({
+                    'question_number': i,
+                    'test_number': j+1,
+                    'model_name': model,
+                    'evaluator': evaluator,
+                    'evaluator_model': evaluator_model,
+                    'prompt_tokens': response["prompt_tokens"],
+                    'completion_tokens': response["completion_tokens"],
+                    'total_tokens': response["total_tokens"],
+                    'response_time': f"{response['response_time']:.2f}",
+                    'evaluation_score': f"{float(evaluation):.2f}"
+                })
+
+            # Calculate per-question averages
+            avg_score = statistics.mean(question_evaluation_scores)
+            avg_question_response_time = statistics.mean(question_response_times)
+            avg_question_completion_tokens = statistics.mean(question_completion_tokens)
+            avg_question_total_tokens = statistics.mean(question_total_tokens)
+
+            print("=" * 50)
+            print(f"Question {i} Averages:")
+            print(f"  Score: {avg_score:.2f}")
+            print(f"  Response Time: {avg_question_response_time:.2f} seconds")
+            print(f"  Completion Tokens: {avg_question_completion_tokens:.2f}")
+            print(f"  Total Tokens: {avg_question_total_tokens:.2f}")
+
+            # Add per-question averages row to CSV data
             csv_data.append({
                 'question_number': i,
-                'test_number': j+1,
-                'model_name': subject_model,
-                'evaluator': evaluator,
-                'evaluator_model': evaluator_model,
-                'prompt_tokens': response["prompt_tokens"],
-                'completion_tokens': response["completion_tokens"],
-                'total_tokens': response["total_tokens"],
-                'response_time': f"{response['response_time']:.2f}",
-                'evaluation_score': f"{float(evaluation):.2f}"
+                'test_number': 'Average',
+                'model_name': '',
+                'evaluator': '',
+                'evaluator_model': '',
+                'prompt_tokens': '',
+                'completion_tokens': f"{avg_question_completion_tokens:.2f}",
+                'total_tokens': f"{avg_question_total_tokens:.2f}",
+                'response_time': f"{avg_question_response_time:.2f}",
+                'evaluation_score': f"{avg_score:.2f}"
             })
 
-        # Calculate per-question averages
-        avg_score = statistics.mean(question_evaluation_scores)
-        avg_question_response_time = statistics.mean(question_response_times)
-        avg_question_completion_tokens = statistics.mean(question_completion_tokens)
-        avg_question_total_tokens = statistics.mean(question_total_tokens)
+        # Calculate model-specific averages
+        model_avg_score = statistics.mean(model_evaluation_scores)
+        model_avg_response_time = statistics.mean(model_response_times)
+        model_avg_completion_tokens = statistics.mean(model_completion_tokens)
+        model_avg_total_tokens = statistics.mean(model_total_tokens)
 
-        print("=" * 50)
-        print(f"Question {i} Averages:")
-        print(f"  Score: {avg_score:.2f}")
-        print(f"  Response Time: {avg_question_response_time:.2f} seconds")
-        print(f"  Completion Tokens: {avg_question_completion_tokens:.2f}")
-        print(f"  Total Tokens: {avg_question_total_tokens:.2f}")
+        # Store model metrics for comparison
+        model_metrics[model] = {
+            'avg_score': model_avg_score,
+            'avg_response_time': model_avg_response_time,
+            'avg_completion_tokens': model_avg_completion_tokens,
+            'avg_total_tokens': model_avg_total_tokens
+        }
 
-        # Add per-question averages row to CSV data
+        # Print model-specific averages to console
+        print("=" * 60)
+        print(f"MODEL AVERAGES FOR {model}:")
+        print(f"Average Score: {model_avg_score:.2f}")
+        print(f"Average Response Time: {model_avg_response_time:.2f} seconds")
+        print(f"Average Completion Tokens: {model_avg_completion_tokens:.2f}")
+        print(f"Average Total Tokens: {model_avg_total_tokens:.2f}")
+        print("=" * 60)
+
+        # Add model averages row to CSV data
         csv_data.append({
-            'question_number': i,
+            'question_number': f'Model_{model}_Average',
             'test_number': 'Average',
-            'model_name': '',
-            'evaluator': '',
-            'evaluator_model': '',
+            'model_name': model,
+            'evaluator': evaluator,
+            'evaluator_model': evaluator_model,
             'prompt_tokens': '',
-            'completion_tokens': f"{avg_question_completion_tokens:.2f}",
-            'total_tokens': f"{avg_question_total_tokens:.2f}",
-            'response_time': f"{avg_question_response_time:.2f}",
-            'evaluation_score': f"{avg_score:.2f}"
+            'completion_tokens': f"{model_avg_completion_tokens:.2f}",
+            'total_tokens': f"{model_avg_total_tokens:.2f}",
+            'response_time': f"{model_avg_response_time:.2f}",
+            'evaluation_score': f"{model_avg_score:.2f}"
         })
 
-    # Calculate overall averages
-    avg_evaluation_score = statistics.mean(all_evaluation_scores)
-    avg_response_time = statistics.mean(all_response_times)
-    avg_completion_tokens = statistics.mean(all_completion_tokens)
-    avg_total_tokens = statistics.mean(all_total_tokens)
+    # Find the winning model
+    winning_model = max(model_metrics.items(), key=lambda x: x[1]['avg_score'])
+    winning_model_name = winning_model[0]
+    winning_score = winning_model[1]['avg_score']
 
-    # Add overall averages row to CSV data
-    csv_data.append({
-        'question_number': 'Overall',
-        'test_number': 'Average',
-        'model_name': '',
-        'evaluator': '',
-        'evaluator_model': '',
-        'prompt_tokens': '',
-        'completion_tokens': f"{avg_completion_tokens:.2f}",
-        'total_tokens': f"{avg_total_tokens:.2f}",
-        'response_time': f"{avg_response_time:.2f}",
-        'evaluation_score': f"{avg_evaluation_score}"
-    })
+    # Print model comparison and declare winner
+    print("\n" + "=" * 80)
+    print("MODEL COMPARISON SUMMARY:")
+    print("=" * 80)
+    for model_name, metrics in model_metrics.items():
+        print(f"{model_name}:")
+        print(f"  Average Score: {metrics['avg_score']:.2f}")
+        print(f"  Average Response Time: {metrics['avg_response_time']:.2f}s")
+        print(f"  Average Completion Tokens: {metrics['avg_completion_tokens']:.2f}")
+        print(f"  Average Total Tokens: {metrics['avg_total_tokens']:.2f}")
+        print()
+
+    print("🏆 WINNING MODEL 🏆")
+    print(f"Model: {winning_model_name}")
+    print(f"Highest Average Score: {winning_score:.2f}")
+    print("=" * 80)
 
     # Write to CSV file
     with open('test_results.csv', 'w', newline='', encoding='utf-8') as csvfile:
@@ -194,15 +213,6 @@ def main():
         writer.writerows(csv_data)
 
     print(f"\nResults exported to test_results.csv")
-
-    # Print overall averages to console
-    print("=" * 50)
-    print("OVERALL AVERAGES:")
-    print(f"Average Score: {avg_evaluation_score:.2f}")
-    print(f"Average Response Time: {avg_response_time:.2f} seconds")
-    print(f"Average Completion Tokens: {avg_completion_tokens:.2f}")
-    print(f"Average Total Tokens: {avg_total_tokens:.2f}")
-    print("=" * 50)
 
 
 if __name__ == "__main__":

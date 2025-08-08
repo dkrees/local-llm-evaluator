@@ -1,0 +1,26 @@
+# Select subject model/s to test.
+# Multiple specified models are tested sequentially and the results are compared to identify the highest scoring model.
+subject_models: ["lfm2-1.2b", "qwen/qwen3-4b", "deepseek-r1-distill-qwen-7b"]
+
+# Select the Evaluator AI Provider and Model
+evaluator: "openai"  # openai | anthropic
+evaluator_model: "gpt-4o-mini"  # ie. gpt-4o-mini, claude-sonnet-4-20250514
+
+# Specify the number of times to perform the test to gather average metrics.
+number_of_tests: 2
+
+# Select the test data to use.
+dataset: "test_data/questions_simple.txt"
+
+# Evaluation Types:
+# - SIMPLE_QUESTION
+#     Simple Q&A evaluation to determine the accuracy of the answer
+#     Scoring 0 - 1.0 (Poor - Perfect)
+# - RATIONALE
+#     Q&A evaluation that assess the correctness of the answer and an evaluation of the rationale the model makes.
+#     Good for testing reasoning models and solving more complex questions or problems.
+#     Scoring 0 - 1.0 (Poor - Perfect)
+# - SUMMARISE
+#     Evaluation of a model's ability to summarise content, accurately and retain key inforamtion concisely.
+#     Scoring 0 - 1.0 (Poor - Perfect)
+evaluation_type: "SIMPLE_QUESTION"
