@@ -1,0 +1,8 @@
+Q: There are two ducks in front of a duck, two ducks behind a duck and a duck in the middle. How many ducks are there?
+A: Three. Two ducks are in front of the last duck; the first duck has two ducks behind; one duck is between the other two.
+
+Q: Five people were eating apples, A finished before B, but behind C. D finished before E, but behind B. What was the finishing order?
+A: CABDE. Putting the first three in order, A finished in front of B but behind C, so CAB. Then, we know D finished before B, so CABD. We know E finished after D, so CABDE.
+
+Q: Jack is looking at Anne. Anne is looking at George. Jack is married, George is not, and we don’t know if Anne is married. Is a married person looking at an unmarried person?
+A: Yes. If Anne is married, then she is married and looking at George, who is unmarried. If Anne is unmarried, then Jack, who is married, is looking at her. Either way, the statement is correct.

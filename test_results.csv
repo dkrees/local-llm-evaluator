@@ -1,0 +1,6 @@
+question_number,test_number,model_name,evaluator,evaluator_model,prompt_tokens,completion_tokens,total_tokens,response_time,evaluation_score
+1,1,lfm2-1.2b,openai,gpt-4o-mini,569,244,813,5.10,1.00
+1,2,lfm2-1.2b,openai,gpt-4o-mini,569,258,827,4.17,0.80
+1,3,lfm2-1.2b,openai,gpt-4o-mini,569,168,737,2.56,0.80
+1,Average,,,,,223.33,792.33,3.94,0.87
+Overall,Average,,,,,223.33,792.33,3.94,0.8666666666666667
