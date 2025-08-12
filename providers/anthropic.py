@@ -17,7 +17,12 @@ def call_anthropic_model(model, system_prompt, prompt, temperature=0.2, max_outp
       max_tokens=max_output_tokens
     )
 
-    return response.content[0].text
+    return {
+      "response": response.content[0].text,
+      "prompt_tokens": response.usage.input_tokens,
+      "completion_tokens": response.usage.output_tokens,
+      "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+    }
 
   except Exception as e:
-    return f"Error: {e}"
+    raise e

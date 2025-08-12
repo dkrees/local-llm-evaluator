@@ -1,11 +1,11 @@
+Q: What is 8.8 - 8.11?
+A: 0.69
+
+Q: How many "r's" are there in "Strawberry"?
+A: 3
+
 Q: What is the Capital of France
 A: Paris
 
 Q: What is the height of Mount Everest
 A: 8,849m
-
-Q: Where is the lost city of Atlantis located?
-A: The lost city of Atlatis is a myth but it is described by Plato as located in the Atlantic Ocean, west of the Strait of Gibraltar
-
-Q: Is the lost city of Atlantis a myth or real?
-A: It is a myth. There is no evidence to support the existence of Atlantis.

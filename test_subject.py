@@ -1,10 +1,10 @@
 import time
-from openai import OpenAI
+from providers.anthropic import call_anthropic_model
+from providers.lmstudio import call_lmstudio_model
+from providers.openai import call_openai_model
 from evaluators.evaluation_types import EvaluationType
 
-client = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="*")
-
-def test_model(model:str="*", evaluation_type:EvaluationType = None, question:str = "", temperature=0.5):
+def test_model(provider:str, model:str="*", evaluation_type:EvaluationType = None, question:str = "", temperature=0.5):
 
   instructions = ""
 
@@ -15,28 +15,26 @@ def test_model(model:str="*", evaluation_type:EvaluationType = None, question:st
   elif evaluation_type == EvaluationType.SUMMARISE:
     instructions = "Summarise the given text, maintain the key and factual elements."
 
-
   # Start a timer for the local model completion
   start_time = time.time()
 
-  # Call the local model
-  completion = client.chat.completions.create(
-      model=model, # Must specify the model when multiple models are loaded in LMStudio
-      messages=[
-          {"role": "system", "content": f"{instructions}"},
-          {"role": "user", "content": question}
-      ],
-      temperature=temperature
-  )
+  if provider == 'openai':
+    response = call_openai_model(model, instructions, question, temperature)
+  elif provider == 'anthropic':
+    response = call_anthropic_model(model, instructions, question, temperature)
+  elif provider == 'lmstudio':
+    response = call_lmstudio_model(model, instructions, question, temperature)
+  else:
+    response = call_lmstudio_model(model, instructions, question, temperature)
 
   # End time and response time
   end_time = time.time()
   response_time = end_time - start_time
 
   return {
-    "response": completion.choices[0].message.content,
+    "response": response["response"],
     "response_time": response_time,
-    "prompt_tokens": completion.usage.prompt_tokens,
-    "completion_tokens": completion.usage.completion_tokens,
-    "total_tokens": completion.usage.total_tokens
+    "prompt_tokens": response["prompt_tokens"],
+    "completion_tokens": response["completion_tokens"],
+    "total_tokens": response["total_tokens"]
   }

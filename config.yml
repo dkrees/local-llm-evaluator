@@ -1,16 +1,31 @@
 # Select subject model/s to test.
 # Multiple specified models are tested sequentially and the results are compared to identify the highest scoring model.
-subject_models: ["lfm2-1.2b", "qwen/qwen3-4b", "deepseek-r1-distill-qwen-7b"]
+# Using LMStudio, these models are loaded as required and ejected when the next one is loaded.
+subject_models:
+  # - provider: "openai"
+  #   model: "gpt-4o-mini"
+  # - provider: "anthropic"
+  #   model: "claude-sonnet-4-20250514"
+  - provider: "lmstudio"
+    model: "lfm2-1.2b"
+  - provider: "lmstudio"
+    model: "qwen/qwen3-4b"
+  # - provider: "lmstudio"
+  #   model: "deepseek-r1-distill-qwen-7b"
+
 
 # Select the Evaluator AI Provider and Model
-evaluator: "openai"  # openai | anthropic
+# Support options:
+# - openai
+# - anthropic
+evaluator: "openai"
 evaluator_model: "gpt-4o-mini"  # ie. gpt-4o-mini, claude-sonnet-4-20250514
 
 # Specify the number of times to perform the test to gather average metrics.
-number_of_tests: 2
+number_of_tests: 3
 
 # Select the test data to use.
-dataset: "test_data/questions_simple.txt"
+dataset: "test_data/questions_logical.txt"
 
 # Evaluation Types:
 # - SIMPLE_QUESTION
@@ -23,4 +38,4 @@ dataset: "test_data/questions_simple.txt"
 # - SUMMARISE
 #     Evaluation of a model's ability to summarise content, accurately and retain key inforamtion concisely.
 #     Scoring 0 - 1.0 (Poor - Perfect)
-evaluation_type: "SIMPLE_QUESTION"
+evaluation_type: "RATIONALE"
