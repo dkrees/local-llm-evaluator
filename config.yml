@@ -8,8 +8,8 @@ subject_models:
   #   model: "claude-sonnet-4-20250514"
   - provider: "lmstudio"
     model: "lfm2-1.2b"
-  - provider: "lmstudio"
-    model: "qwen/qwen3-4b"
+  # - provider: "lmstudio"
+  #   model: "qwen/qwen3-4b"
   # - provider: "lmstudio"
   #   model: "deepseek-r1-distill-qwen-7b"
 

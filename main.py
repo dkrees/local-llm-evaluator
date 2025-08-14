@@ -1,5 +1,6 @@
 from test_subject import test_model
 from utility import parse_input_data
+from powermetrics import PowerMetricsCollector
 import statistics
 import csv
 import importlib
@@ -48,12 +49,14 @@ def main():
         model_response_times = []
         model_completion_tokens = []
         model_total_tokens = []
+        model_energy_usage = []
 
         for i, qa in enumerate(qa_pairs, 1):
             question_evaluation_scores = []
             question_response_times = []
             question_completion_tokens = []
             question_total_tokens = []
+            question_energy_usage = []
 
             expected_answer = None
 
@@ -66,6 +69,10 @@ def main():
                 else:
                     print("Expected Answer: None (question-only dataset)")
 
+                # Start energy monitoring
+                power_collector = PowerMetricsCollector()
+                power_collector.start_collection()
+                
                 # TEST THE MODEL
                 response = test_model(
                     provider = model['provider'],
@@ -73,14 +80,21 @@ def main():
                     evaluation_type = evaluation_type,
                     question = qa['question']
                 )
+                
+                # Stop energy monitoring and get average
+                energy_usage = power_collector.stop_collection()
 
-                print(f"AI Answer: {response["response"]}")
+                print(f"AI Answer: {response['response']}")
                 print("-" * 50)
-                print(f"Prompt Tokens: {response["prompt_tokens"]}")
-                print(f"Completion Tokens: {response["completion_tokens"]}")
-                print(f"Total Tokens: {response["total_tokens"]}")
+                print(f"Prompt Tokens: {response['prompt_tokens']}")
+                print(f"Completion Tokens: {response['completion_tokens']}")
+                print(f"Total Tokens: {response['total_tokens']}")
                 print("-" * 50)
-                print(f"Response Time: {response["response_time"]:.2f} seconds")
+                print(f"Response Time: {response['response_time']:.2f} seconds")
+                if energy_usage is not None:
+                    print(f"Energy Usage: {energy_usage:.2f} mW")
+                else:
+                    print("Energy Usage: N/A (powermetrics failed)")
                 print("-" * 50)
                 print("Evaluating Response...")
 
@@ -107,30 +121,35 @@ def main():
 
                 # Collect metrics for question-specific averages
                 question_evaluation_scores.append(float(evaluation_score))
-                question_response_times.append(response["response_time"])
-                question_completion_tokens.append(response["completion_tokens"])
-                question_total_tokens.append(response["total_tokens"])
+                question_response_times.append(response['response_time'])
+                question_completion_tokens.append(response['completion_tokens'])
+                question_total_tokens.append(response['total_tokens'])
+                if energy_usage is not None:
+                    question_energy_usage.append(energy_usage)
 
                 # Collect metrics for model-specific averages
                 model_evaluation_scores.append(float(evaluation_score))
-                model_response_times.append(response["response_time"])
-                model_completion_tokens.append(response["completion_tokens"])
-                model_total_tokens.append(response["total_tokens"])
+                model_response_times.append(response['response_time'])
+                model_completion_tokens.append(response['completion_tokens'])
+                model_total_tokens.append(response['total_tokens'])
+                if energy_usage is not None:
+                    model_energy_usage.append(energy_usage)
 
                 # Collect data for CSV
                 csv_data.append({
                     'question_number': i,
                     'test_number': j+1,
                     'question': qa['question'],
-                    'llm_answer': response["response"],
+                    'llm_answer': response['response'],
                     'expected_answer': expected_answer if expected_answer else '',
                     'model_name': model['model'],
                     'evaluator': evaluator,
                     'evaluator_model': evaluator_model,
-                    'prompt_tokens': response["prompt_tokens"],
-                    'completion_tokens': response["completion_tokens"],
-                    'total_tokens': response["total_tokens"],
+                    'prompt_tokens': response['prompt_tokens'],
+                    'completion_tokens': response['completion_tokens'],
+                    'total_tokens': response['total_tokens'],
                     'response_time': f"{response['response_time']:.2f}",
+                    'energy_usage': f"{energy_usage:.2f}" if energy_usage is not None else 'N/A',
                     'evaluation_score': f"{float(evaluation_score):.2f}",
                     'evaluation_reasoning': evaluation_reasoning
                 })
@@ -140,6 +159,7 @@ def main():
             avg_question_response_time = statistics.mean(question_response_times)
             avg_question_completion_tokens = statistics.mean(question_completion_tokens)
             avg_question_total_tokens = statistics.mean(question_total_tokens)
+            avg_question_energy_usage = statistics.mean(question_energy_usage) if question_energy_usage else None
 
             print("=" * 50)
             print(f"📈 Question {i} Averages:")
@@ -147,6 +167,10 @@ def main():
             print(f"  Response Time: {avg_question_response_time:.2f} seconds")
             print(f"  Completion Tokens: {avg_question_completion_tokens:.2f}")
             print(f"  Total Tokens: {avg_question_total_tokens:.2f}")
+            if avg_question_energy_usage is not None:
+                print(f"  Energy Usage: {avg_question_energy_usage:.2f} mW")
+            else:
+                print(f"  Energy Usage: N/A")
 
             # Add per-question averages row to CSV data
             csv_data.append({
@@ -162,6 +186,7 @@ def main():
                 'completion_tokens': f"{avg_question_completion_tokens:.2f}",
                 'total_tokens': f"{avg_question_total_tokens:.2f}",
                 'response_time': f"{avg_question_response_time:.2f}",
+                'energy_usage': f"{avg_question_energy_usage:.2f}" if avg_question_energy_usage is not None else 'N/A',
                 'evaluation_score': f"{avg_score:.2f}",
                 'evaluation_reasoning': ''
             })
@@ -171,13 +196,15 @@ def main():
         model_avg_response_time = statistics.mean(model_response_times)
         model_avg_completion_tokens = statistics.mean(model_completion_tokens)
         model_avg_total_tokens = statistics.mean(model_total_tokens)
+        model_avg_energy_usage = statistics.mean(model_energy_usage) if model_energy_usage else None
 
         # Store model metrics for comparison
         model_metrics[model['model']] = {
             'avg_score': model_avg_score,
             'avg_response_time': model_avg_response_time,
             'avg_completion_tokens': model_avg_completion_tokens,
-            'avg_total_tokens': model_avg_total_tokens
+            'avg_total_tokens': model_avg_total_tokens,
+            'avg_energy_usage': model_avg_energy_usage
         }
 
         # Print model-specific averages to console
@@ -187,11 +214,15 @@ def main():
         print(f"Average Response Time: {model_avg_response_time:.2f} seconds")
         print(f"Average Completion Tokens: {model_avg_completion_tokens:.2f}")
         print(f"Average Total Tokens: {model_avg_total_tokens:.2f}")
+        if model_avg_energy_usage is not None:
+            print(f"Average Energy Usage: {model_avg_energy_usage:.2f} mW")
+        else:
+            print(f"Average Energy Usage: N/A")
         print("=" * 60)
 
         # Add model averages row to CSV data
         csv_data.append({
-            'question_number': f'Model_{model['model']}_Average',
+            'question_number': f"Model_{model['model']}_Average",
             'test_number': 'Average',
             'question': '',
             'llm_answer': '',
@@ -203,6 +234,7 @@ def main():
             'completion_tokens': f"{model_avg_completion_tokens:.2f}",
             'total_tokens': f"{model_avg_total_tokens:.2f}",
             'response_time': f"{model_avg_response_time:.2f}",
+            'energy_usage': f"{model_avg_energy_usage:.2f}" if model_avg_energy_usage is not None else 'N/A',
             'evaluation_score': f"{model_avg_score:.2f}",
             'evaluation_reasoning': ''
         })
@@ -222,6 +254,10 @@ def main():
         print(f"  Average Response Time: {metrics['avg_response_time']:.2f}s")
         print(f"  Average Completion Tokens: {metrics['avg_completion_tokens']:.2f}")
         print(f"  Average Total Tokens: {metrics['avg_total_tokens']:.2f}")
+        if metrics['avg_energy_usage'] is not None:
+            print(f"  Average Energy Usage: {metrics['avg_energy_usage']:.2f} mW")
+        else:
+            print(f"  Average Energy Usage: N/A")
         print()
 
     print("🏆 WINNING MODEL 🏆")
@@ -231,7 +267,7 @@ def main():
 
     # Write to CSV file
     with open('test_results.csv', 'w', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['question_number', 'test_number', 'question', 'llm_answer', 'expected_answer', 'model_name', 'evaluator', 'evaluator_model', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'response_time', 'evaluation_score', 'evaluation_reasoning']
+        fieldnames = ['question_number', 'test_number', 'question', 'llm_answer', 'expected_answer', 'model_name', 'evaluator', 'evaluator_model', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'response_time', 'energy_usage', 'evaluation_score', 'evaluation_reasoning']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(csv_data)
