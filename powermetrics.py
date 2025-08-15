@@ -16,6 +16,9 @@ class PowerMetricsCollector:
         -i: interval in ms
         -n: number of samples
         Outputs the combined CPU, GPU and ANE in mW
+
+        Power reading is a collection of 10 samples for 1 second
+        (interval of 100ms and 10 samples)
         """
         try:
             cmd = "sudo powermetrics -i 100 -n 10 --samplers cpu_power | grep 'Combined Power'"
@@ -40,12 +43,12 @@ class PowerMetricsCollector:
             return None
 
     def _collection_loop(self):
-        """Continuously collect 10 power readings every 1 seconds"""
+        """Continuously collect power readings every 1 second"""
         while self.is_collecting:
             reading = self._collect_power_reading()
             if reading is not None:
                 self.power_readings.append(reading)
-            time.sleep(0.5)
+            time.sleep(1)
 
     def start_collection(self):
         """Start collecting power metrics"""
