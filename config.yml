@@ -18,11 +18,11 @@ subject_models:
 # Support options:
 # - openai
 # - anthropic
-evaluator: "openai"
-evaluator_model: "gpt-4o-mini"  # ie. gpt-4o-mini, claude-sonnet-4-20250514
+evaluator: "lmstudio"
+evaluator_model: "lfm2-1.2b"  # ie. gpt-4o-mini, claude-sonnet-4-20250514
 
 # Specify the number of times to perform the test to gather average metrics.
-number_of_tests: 3
+number_of_tests: 1
 
 # Select the test data to use.
 dataset: "test_data/questions_logical.txt"
@@ -39,3 +39,5 @@ dataset: "test_data/questions_logical.txt"
 #     Evaluation of a model's ability to summarise content, accurately and retain key inforamtion concisely.
 #     Scoring 0 - 1.0 (Poor - Perfect)
 evaluation_type: "RATIONALE"
+
+powermetrics: true

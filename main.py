@@ -23,6 +23,7 @@ def main():
     number_of_tests = config['number_of_tests']
     dataset = config['dataset']
     evaluation_type = config['evaluation_type']
+    powermetrics = config['powermetrics']
 
     # Dynamically import the evaluator based on evaluation_type
     try:
@@ -59,6 +60,7 @@ def main():
             question_energy_usage = []
 
             expected_answer = None
+            energy_usage = None
 
             for j in range(number_of_tests):
 
@@ -69,10 +71,11 @@ def main():
                 else:
                     print("Expected Answer: None (question-only dataset)")
 
-                # Start energy monitoring
-                power_collector = PowerMetricsCollector()
-                power_collector.start_collection()
-                
+                if powermetrics:
+                    # Start energy monitoring
+                    power_collector = PowerMetricsCollector()
+                    power_collector.start_collection()
+
                 # TEST THE MODEL
                 response = test_model(
                     provider = model['provider'],
@@ -80,9 +83,10 @@ def main():
                     evaluation_type = evaluation_type,
                     question = qa['question']
                 )
-                
-                # Stop energy monitoring and get average
-                energy_usage = power_collector.stop_collection()
+
+                if powermetrics:
+                    # Stop energy monitoring and get average
+                    energy_usage = power_collector.stop_collection()
 
                 print(f"AI Answer: {response['response']}")
                 print("-" * 50)
@@ -92,9 +96,9 @@ def main():
                 print("-" * 50)
                 print(f"Response Time: {response['response_time']:.2f} seconds")
                 if energy_usage is not None:
-                    print(f"Energy Usage: {energy_usage:.2f} mW")
+                    print(f"Energy Usage: {energy_usage:.3f} W")
                 else:
-                    print("Energy Usage: N/A (powermetrics failed)")
+                    print("Energy Usage: N/A")
                 print("-" * 50)
                 print("Evaluating Response...")
 
@@ -149,7 +153,7 @@ def main():
                     'completion_tokens': response['completion_tokens'],
                     'total_tokens': response['total_tokens'],
                     'response_time': f"{response['response_time']:.2f}",
-                    'energy_usage': f"{energy_usage:.2f}" if energy_usage is not None else 'N/A',
+                    'energy_usage': f"{energy_usage:.3f}" if energy_usage is not None else 'N/A',
                     'evaluation_score': f"{float(evaluation_score):.2f}",
                     'evaluation_reasoning': evaluation_reasoning
                 })
@@ -168,7 +172,7 @@ def main():
             print(f"  Completion Tokens: {avg_question_completion_tokens:.2f}")
             print(f"  Total Tokens: {avg_question_total_tokens:.2f}")
             if avg_question_energy_usage is not None:
-                print(f"  Energy Usage: {avg_question_energy_usage:.2f} mW")
+                print(f"  Energy Usage: {avg_question_energy_usage:.3f} W")
             else:
                 print(f"  Energy Usage: N/A")
 
@@ -186,7 +190,7 @@ def main():
                 'completion_tokens': f"{avg_question_completion_tokens:.2f}",
                 'total_tokens': f"{avg_question_total_tokens:.2f}",
                 'response_time': f"{avg_question_response_time:.2f}",
-                'energy_usage': f"{avg_question_energy_usage:.2f}" if avg_question_energy_usage is not None else 'N/A',
+                'energy_usage': f"{avg_question_energy_usage:.3f}" if avg_question_energy_usage is not None else 'N/A',
                 'evaluation_score': f"{avg_score:.2f}",
                 'evaluation_reasoning': ''
             })
@@ -215,7 +219,7 @@ def main():
         print(f"Average Completion Tokens: {model_avg_completion_tokens:.2f}")
         print(f"Average Total Tokens: {model_avg_total_tokens:.2f}")
         if model_avg_energy_usage is not None:
-            print(f"Average Energy Usage: {model_avg_energy_usage:.2f} mW")
+            print(f"Average Energy Usage: {model_avg_energy_usage:.3f} W")
         else:
             print(f"Average Energy Usage: N/A")
         print("=" * 60)
@@ -234,7 +238,7 @@ def main():
             'completion_tokens': f"{model_avg_completion_tokens:.2f}",
             'total_tokens': f"{model_avg_total_tokens:.2f}",
             'response_time': f"{model_avg_response_time:.2f}",
-            'energy_usage': f"{model_avg_energy_usage:.2f}" if model_avg_energy_usage is not None else 'N/A',
+            'energy_usage': f"{model_avg_energy_usage:.3f}" if model_avg_energy_usage is not None else 'N/A',
             'evaluation_score': f"{model_avg_score:.2f}",
             'evaluation_reasoning': ''
         })
@@ -255,7 +259,7 @@ def main():
         print(f"  Average Completion Tokens: {metrics['avg_completion_tokens']:.2f}")
         print(f"  Average Total Tokens: {metrics['avg_total_tokens']:.2f}")
         if metrics['avg_energy_usage'] is not None:
-            print(f"  Average Energy Usage: {metrics['avg_energy_usage']:.2f} mW")
+            print(f"  Average Energy Usage: {metrics['avg_energy_usage']:.3f} W")
         else:
             print(f"  Average Energy Usage: N/A")
         print()

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-def call_anthropic_model(model, system_prompt, prompt, temperature=0.2, max_output_tokens=200):
+def call_anthropic_model(model, system_prompt, prompt, temperature=0.3, max_output_tokens=1000):
   try:
     response = client.messages.create(
       model=model,

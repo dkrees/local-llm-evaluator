@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def call_openai_model(model, system_prompt, prompt, temperature=0.2, max_output_tokens=4000):
+def call_openai_model(model, system_prompt, prompt, temperature=0.3, max_output_tokens=1000):
   try:
     response = client.chat.completions.create(
       model=model,
