@@ -14,7 +14,8 @@ def evaluate(evaluator, evaluator_model, question, answer, expected_answer=None)
     """
 
     prompt = f"""
-    Please evaluate the provided SUMMARISATION against the original TEXT. Assess factual accuracy, retention of key information, clarity, structure, and appropriate length. Rate from 0.0 to 1.0:
+    Please evaluate the provided SUMMARISATION against the original TEXT. Assess factual accuracy, retention of key information, clarity, structure, and appropriate length. Rate from 0.0 to 1.0.
+    Clearly identify the actual summarised text to evaluate, seperating and ingoring any thought and reasoning processes, for example any text between "<think> </think>" tags. Only evaluate the summary text.
 
     **Rating Scale:**
     - 1.0: Factually accurate, captures all key information, excellently structured and clear, optimal length

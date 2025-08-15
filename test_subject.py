@@ -11,7 +11,7 @@ def test_model(provider:str, model:str="*", evaluation_type:EvaluationType = Non
   if evaluation_type == EvaluationType.RATIONALE:
     instructions = "Answer the questions accurately. Provide your rationale where possible."
   elif evaluation_type == EvaluationType.SIMPLE_QUESTION:
-    instructions = "Answer the question with a short accurate response."
+    instructions = "Answer the question with a short, accurate response."
   elif evaluation_type == EvaluationType.SUMMARISE:
     instructions = "Summarise the given text, maintain the key and factual elements."
 

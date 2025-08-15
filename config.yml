@@ -15,7 +15,7 @@ subject_models:
 
 
 # Select the Evaluator AI Provider and Model
-# Support options:
+# Supported options:
 # - openai
 # - anthropic
 # - lmstudio
@@ -26,7 +26,7 @@ evaluator_model: "gpt-4o-mini"  # ie. gpt-4o-mini, claude-sonnet-4-20250514
 number_of_tests: 3
 
 # Select the test data to use.
-dataset: "test_data/questions_logical.txt"
+dataset: "test_data/questions_simple.txt"
 
 # Evaluation Types:
 # - SIMPLE_QUESTION

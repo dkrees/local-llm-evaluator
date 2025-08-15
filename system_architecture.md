@@ -2,190 +2,314 @@
 
 ## Overview
 
-This system is a comprehensive **LLM evaluation and benchmarking framework** designed to test multiple local language models against various evaluation criteria and compare their performance. The architecture follows a modular design with clear separation of concerns between model testing, evaluation, and result aggregation.
+This system is a comprehensive **LLM evaluation and benchmarking framework** designed to test multiple local language models against various evaluation criteria and compare their performance. The architecture follows a **modular, object-oriented design** with clear separation of concerns across specialized components, making it highly maintainable, testable, and extensible.
 
-## Core Components
+## Refactored Architecture Components
 
 ### 1. Main Orchestrator (`main.py`)
-**Purpose**: Central controller that orchestrates the entire testing pipeline
-**Key Functions**:
-- Configuration loading from `config.yml`
-- Sequential testing of multiple subject models
-- Coordination of evaluation processes
-- Metrics collection and aggregation
-- Result comparison and winner determination
-- CSV export of detailed results
+**Class**: `LocalLLMTestSuite`
+**Purpose**: Central orchestrator that coordinates all testing components
+**Key Responsibilities**:
+- Initializes and manages all specialized components
+- Coordinates the complete test execution pipeline
+- Delegates specific tasks to appropriate managers
+- Provides clean, simple entry point (`python main.py`)
 
-**Flow**: `main.py:16` → `load_config()` → `parse_input_data()` → `test_model()` → `evaluate()` → Results aggregation
+**Architecture Pattern**: **Facade Pattern** - Provides simplified interface to complex subsystem
 
-### 2. Configuration Management (`config.yml`)
-**Purpose**: Centralized configuration for test parameters
-**Contains**:
-- Subject models to test (provider, model name)
-- Evaluator settings (provider, model)
-- Test parameters (number of iterations, dataset)
-- Evaluation type selection
+### 2. Configuration Management (`config_manager.py`)
+**Class**: `ConfigManager`
+**Purpose**: Centralized configuration loading and validation
+**Key Features**:
+- YAML configuration file parsing
+- Enum conversion for evaluation types
+- Property-based access to configuration values
+- Lazy loading of configuration data
 
-### 3. Model Testing Layer
-#### Subject Model Interface (`test_subject.py`)
-**Purpose**: Interface to local LLM models via LMStudio
-- Connects to local LMStudio server at `127.0.0.1:1234`
-- Handles different evaluation types with specific instructions
-- Measures response time and token usage
-- Returns structured response data
+**Key Methods**:
+- `load_config()` - Loads and validates configuration
+- Property accessors for all config values
 
-**Key Function**: `test_subject.py:7` → `test_model()` - Primary interface for subject model testing
+### 3. Model Testing Layer (`model_tester.py`)
+**Class**: `ModelTester`
+**Purpose**: Handles all model testing operations
+**Key Responsibilities**:
+- Single iteration model testing
+- Multiple test execution with aggregation
+- Response detail display
+- Model response validation
 
-### 4. Evaluation Framework
-#### Evaluation Types (`evaluators/evaluation_types.py`)
-**Purpose**: Defines supported evaluation methodologies
-- `SIMPLE_QUESTION`: Basic Q&A accuracy assessment
-- `RATIONALE`: Complex reasoning evaluation
-- `SUMMARISE`: Content summarization quality
+**Key Methods**:
+- `test_single_iteration()` - Tests model once
+- `run_multiple_tests()` - Runs multiple test iterations
+- `test_question_batch()` - Handles complete question testing
 
-#### Evaluation Engine (`evaluators/simple_question.py`)
-**Purpose**: Implements scoring logic using external evaluator models
-- Supports OpenAI and Anthropic evaluator models
-- Standardized 0.0-1.0 scoring scale
-- Focused on answer correctness comparison
+### 4. Evaluation Management (`evaluation_manager.py`)
+**Class**: `EvaluationManager`
+**Purpose**: Dynamic evaluator loading and response evaluation
+**Key Features**:
+- Dynamic module importing based on evaluation type
+- Unified evaluation interface
+- Support for both legacy and new evaluation formats
+- Evaluation result display
 
-**Flow**: `simple_question.py:4` → `evaluate()` → Model provider selection → API call → Numeric score
+**Key Methods**:
+- `evaluate_response()` - Evaluates model responses
+- `display_evaluation_results()` - Shows evaluation details
 
-### 5. Model Provider Architecture (`providers/`)
-The system now uses a modular provider architecture with separate modules for different model providers:
+### 5. Metrics Collection (`metrics_collector.py`)
+**Classes**: `MetricsCollector`, `QuestionMetricsCollector`, `ModelMetricsCollector`
+**Purpose**: Comprehensive metrics aggregation and CSV row generation
+**Key Features**:
+- Hierarchical metrics collection (individual → question → model)
+- Statistical aggregation (averages, etc.)
+- CSV row generation for different aggregation levels
+- Type-safe metric handling
 
-#### OpenAI Provider (`providers/openai.py`)
-**Purpose**: Interface to OpenAI models for evaluation
-- Uses OpenAI API with environment-based API key authentication
-- Configurable temperature (default 0.2) and token limits (default 4000)
-- Returns structured response with token usage metrics
-- Function: `call_openai_model(model, system_prompt, prompt, temperature, max_output_tokens)`
+**Key Methods**:
+- `add_metric()` - Adds individual test metrics
+- `get_averages()` - Calculates statistical averages
+- `create_csv_row()` - Generates CSV data rows
 
-#### Anthropic Provider (`providers/anthropic.py`)  
-**Purpose**: Interface to Anthropic/Claude models for evaluation
-- Uses Anthropic API with environment-based API key authentication
-- Configurable temperature (default 0.2) and token limits (default 200)
-- Returns structured response with token usage metrics
-- Function: `call_anthropic_model(model, system_prompt, prompt, temperature, max_output_tokens)`
+### 6. Results Display (`results_displayer.py`)
+**Class**: `ResultsDisplayer`
+**Purpose**: Console output formatting and presentation
+**Key Features**:
+- Consistent output formatting
+- Hierarchical result display (test → question → model → comparison)
+- Structured console output with separators
+- Winner announcement formatting
 
-#### LMStudio Provider (`providers/lmstudio.py`)
-**Purpose**: Interface to local LMStudio server for subject model testing
-- Connects to local LMStudio server at `http://127.0.0.1:1234/v1`
-- Uses OpenAI-compatible API interface with dummy API key
-- Configurable temperature (default 0.5)
-- Returns structured response with token usage metrics
-- Function: `call_lmstudio_model(model, system_prompt, prompt, temperature)`
+**Key Methods**:
+- `display_model_header()` - Model testing headers
+- `display_question_averages()` - Question-level summaries
+- `display_model_comparison()` - Final comparison display
 
-### 6. Data Processing (`utility.py`)
-**Purpose**: Input data parsing and formatting
-**Handles**:
-- Q&A pair format (`Q: ... A: ...`)
-- Question-only datasets
-- Summarization text files
-- Multiple file format detection
+### 7. Results Export (`results_exporter.py`)
+**Class**: `ResultsExporter`
+**Purpose**: CSV file generation and export
+**Key Features**:
+- Structured CSV export with defined fieldnames
+- UTF-8 encoding support
+- Configurable output filename
+- Success confirmation messaging
 
-**Key Function**: `utility.py:1` → `parse_input_data()` - Processes test datasets
+**Key Methods**:
+- `export_to_csv()` - Exports complete CSV file
 
-### 7. Test Data (`test_data/`)
-**Purpose**: Contains various dataset formats
-- `questions_simple.txt`: Basic Q&A pairs
-- `questions_logical.txt`: Logic-based questions  
-- `summarise_*.txt`: Text summarization tasks
+### 8. Power Metrics Management (`power_metrics_manager.py`)
+**Class**: `PowerMetricsManager`
+**Purpose**: Energy monitoring and power usage tracking
+**Key Features**:
+- Optional power monitoring (configurable)
+- Energy consumption calculations
+- Power usage display formatting
+- Integration with PowerMetricsCollector
 
-### 8. Results Management (`test_results.csv`)
-**Purpose**: Detailed test results export
-**Contains**:
-- Individual test results per question/model
-- Per-question averages
-- Per-model averages
-- Performance metrics (tokens, response time, scores)
+**Key Methods**:
+- `start_monitoring()` - Begins power collection
+- `stop_monitoring()` - Ends collection and returns usage
+- `calculate_energy_consumption()` - Converts power to energy
+
+### 9. Comparison Analysis (`comparison_analyzer.py`)
+**Class**: `ComparisonAnalyzer`
+**Purpose**: Model performance comparison and ranking
+**Key Features**:
+- Winner determination by multiple criteria
+- Model ranking algorithms (score, efficiency, energy efficiency)
+- Statistical analysis of model performance
+- Extensible comparison metrics
+
+**Key Methods**:
+- `find_winning_model()` - Determines best performing model
+- `rank_models_by_score()` - Ranks by evaluation scores
+- `rank_models_by_efficiency()` - Ranks by score/time ratio
+
+## Architecture Benefits
+
+### 🎯 **Single Responsibility Principle**
+Each class has one clear, focused responsibility:
+- ConfigManager → Configuration only
+- ModelTester → Model testing only  
+- MetricsCollector → Metrics aggregation only
+- etc.
+
+### 🔧 **High Maintainability**
+- Individual components can be modified without affecting others
+- Clear interfaces between components
+- Easy to debug and test individual parts
+
+### 🧪 **High Testability**
+- Each component can be unit tested independently
+- Clear dependencies that can be mocked
+- Isolated functionality for focused testing
+
+### 📖 **Improved Readability**
+- Self-documenting class and method names
+- Clear separation of concerns
+- Reduced cognitive load per component
+
+### ♻️ **High Reusability**
+- Components can be used in other contexts
+- Clear interfaces allow easy integration
+- Modular design enables component reuse
+
+### 🏗️ **High Extensibility**
+- Easy to add new evaluation types
+- Simple to add new metrics collectors
+- Straightforward to add new output formats
 
 ## System Flow Architecture
 
-The system follows this high-level flow:
+The refactored system follows this clean flow:
 
 ```
-Config Loading → Dataset Parsing → Model Testing Loop → Evaluation → Results Aggregation → Winner Selection → CSV Export
+LocalLLMTestSuite.run_complete_test_suite() → 
+  For each model:
+    _test_model() → 
+      For each question:
+        _test_question() → 
+          For each iteration:
+            _run_single_test() → ModelTester + EvaluationManager + PowerMetricsManager
 ```
 
-### Detailed Flow:
+### Detailed Component Flow:
 
-1. **Initialization Phase** (`main.py:16-24`)
-   - Load configuration from `config.yml`
-   - Parse evaluation type enum
-   - Import appropriate evaluator module
+1. **Initialization Phase**
+   - `LocalLLMTestSuite.__init__()` creates all component instances
+   - `ConfigManager` loads and validates configuration
+   - All managers initialized with appropriate dependencies
 
-2. **Data Preparation** (`main.py:33`)
-   - Parse input dataset using `utility.parse_input_data()`
-   - Structure questions and expected answers
+2. **Test Execution Phase**
+   - `run_complete_test_suite()` orchestrates the complete pipeline
+   - `_test_model()` handles per-model testing and metrics
+   - `_test_question()` manages question-level iterations
+   - `_run_single_test()` executes individual test cycles
 
-3. **Testing Loop** (`main.py:41-148`)
-   - For each subject model:
-     - For each question in dataset:
-       - For each test iteration:
-         - Call `test_subject.test_model()` 
-         - Get response, timing, and token metrics
-         - Call evaluator's `evaluate()` function
-         - Collect metrics for aggregation
-       - Calculate per-question averages
-     - Calculate per-model averages
+3. **Results Phase**
+   - `ComparisonAnalyzer` determines winners and rankings
+   - `ResultsDisplayer` formats and shows console output
+   - `ResultsExporter` generates CSV files
 
-4. **Model Comparison** (`main.py:188-207`)
-   - Compare all model performance metrics
-   - Determine winning model by highest average score
-   - Display comparative results
+## Key Design Patterns Used
 
-5. **Results Export** (`main.py:209-216`)
-   - Export detailed results to CSV
-   - Include individual tests, averages, and metadata
+### 1. **Facade Pattern**: LocalLLMTestSuite
+- Provides simple interface to complex subsystem
+- Hides internal component complexity
+- Single point of entry for all operations
 
-## Key Design Patterns
-
-### 1. **Strategy Pattern**: Evaluation Types
-- Different evaluation strategies (`SIMPLE_QUESTION`, `RATIONALE`, `SUMMARISE`)
-- Dynamic module loading based on evaluation type
+### 2. **Strategy Pattern**: Evaluation Types
+- Different evaluation strategies handled by EvaluationManager
+- Dynamic strategy selection based on configuration
 - Consistent interface across evaluation methods
 
-### 2. **Factory Pattern**: Model Providers
-- Modular provider architecture with separate provider modules
-- Concrete implementations for OpenAI, Anthropic, and LMStudio
-- Runtime provider selection based on configuration
-- Unified response format across all providers
+### 3. **Factory Pattern**: Model Providers  
+- Modular provider architecture maintained
+- Runtime provider selection preserved
+- Unified response format across providers
 
-### 3. **Template Method**: Testing Pipeline
-- Fixed testing sequence with configurable parameters
-- Consistent metrics collection across all tests
-- Standardized result aggregation
+### 4. **Composition Pattern**: Component Assembly
+- LocalLLMTestSuite composed of specialized managers
+- Clear dependency relationships
+- Flexible component swapping possible
 
-## Data Flow
+### 5. **Template Method Pattern**: Testing Pipeline
+- Fixed testing sequence with configurable behavior
+- Consistent metrics collection workflow
+- Standardized result aggregation process
+
+## Component Dependencies
+
+```mermaid
+graph TD
+    A[LocalLLMTestSuite] --> B[ConfigManager]
+    A --> C[ModelTester]
+    A --> D[EvaluationManager]
+    A --> E[PowerMetricsManager]
+    A --> F[ResultsDisplayer]
+    A --> G[ResultsExporter]
+    A --> H[ComparisonAnalyzer]
+    
+    A --> I[QuestionMetricsCollector]
+    A --> J[ModelMetricsCollector]
+    
+    B --> K[config.yml]
+    C --> L[test_subject.py]
+    D --> M[evaluators/*]
+    E --> N[powermetrics.py]
+    
+    style A fill:#ffeb3b
+    style B fill:#e3f2fd
+    style K fill:#fff3e0
+```
+
+## Data Flow Architecture
 
 ### Input Data Flow:
 ```
-config.yml → Configuration Loading → Test Parameters
-test_data/*.txt → Data Parser → Structured Q&A Pairs
+config.yml → ConfigManager → Properties
+test_data/*.txt → parse_input_data() → Structured Q&A Pairs
 ```
 
 ### Processing Data Flow:
 ```
-Subject Model → LMStudio API → Response + Metrics
-Response → Evaluator Model → Numeric Score (0.0-1.0)
-Metrics → Aggregation → Per-Question/Model Averages
+ModelTester → test_subject.py → LMStudio API → Response
+EvaluationManager → evaluators/* → Provider APIs → Scores
+PowerMetricsManager → powermetrics.py → Energy Data
+MetricsCollector → Statistical Aggregation → Averages
 ```
 
 ### Output Data Flow:
 ```
-Individual Results → CSV Export → test_results.csv
-Aggregated Metrics → Console Output → Model Comparison
-Winner Selection → Final Report → Performance Summary
+MetricsCollector → CSV Data → ResultsExporter → test_results.csv
+ComparisonAnalyzer → Winner Analysis → ResultsDisplayer → Console Output
 ```
 
 ## Extensibility Points
 
-1. **New Evaluation Types**: Add modules in `evaluators/` directory
-2. **New Model Providers**: Implement provider interface in `providers/` directory with consistent function signature
-3. **New Data Formats**: Extend `utility.parse_input_data()` parsing logic
-4. **New Metrics**: Modify result collection in main testing loop
-5. **New Output Formats**: Add export functions alongside CSV generation
+The refactored architecture provides clear extension points:
+
+1. **New Evaluation Types**: 
+   - Add evaluator modules in `evaluators/` directory
+   - EvaluationManager automatically handles dynamic loading
+
+2. **New Model Providers**: 
+   - Implement provider interface in `providers/` directory
+   - Existing provider selection logic remains unchanged
+
+3. **New Metrics**: 
+   - Extend MetricsCollector classes with new metric types
+   - Add corresponding display methods to ResultsDisplayer
+
+4. **New Output Formats**: 
+   - Create new exporter classes following ResultsExporter pattern
+   - Add to LocalLLMTestSuite initialization
+
+5. **New Comparison Algorithms**: 
+   - Add methods to ComparisonAnalyzer class
+   - Extend result display for new ranking types
+
+## File Structure
+
+```
+local-llm/
+├── main.py                     # LocalLLMTestSuite orchestrator
+├── config_manager.py           # Configuration management
+├── model_tester.py             # Model testing operations
+├── evaluation_manager.py       # Evaluation coordination
+├── power_metrics_manager.py    # Energy monitoring
+├── metrics_collector.py        # Metrics aggregation
+├── results_displayer.py        # Console output formatting
+├── results_exporter.py         # CSV export functionality
+├── comparison_analyzer.py      # Model comparison and ranking
+├── test_subject.py             # Subject model interface
+├── utility.py                  # Data parsing utilities
+├── powermetrics.py            # Power collection implementation
+├── config.yml                 # Configuration file
+├── evaluators/                # Evaluation modules
+├── providers/                 # Model provider interfaces
+└── test_data/                 # Test datasets
+```
 
 ## Dependencies
 
@@ -193,168 +317,6 @@ Winner Selection → Final Report → Performance Summary
 - **Anthropic SDK**: For Claude evaluator models  
 - **PyYAML**: Configuration file parsing
 - **python-dotenv**: Environment variable management for API keys
-- **Standard Library**: CSV, statistics, importlib for core functionality
+- **Standard Library**: CSV, statistics, importlib, typing for core functionality
 
-This architecture provides a flexible, scalable framework for comprehensive LLM evaluation with clear separation of concerns and extensive configurability.
-
-## System Flow Diagram
-
-```mermaid
-flowchart TD
-    A[Start: main.py] --> B[Load config.yml]
-    B --> C[Parse Evaluation Type Enum]
-    C --> D[Import Evaluator Module]
-    D --> E[Parse Input Dataset]
-    
-    E --> F[Initialize Results Storage]
-    F --> G[Model Testing Loop]
-    
-    G --> H{For Each Subject Model}
-    H --> I{For Each Question}
-    I --> J{For Each Test Iteration}
-    
-    J --> K[Call test_subject.test_model]
-    K --> L[LMStudio API Call]
-    L --> M[Get Response + Metrics]
-    
-    M --> N[Call Evaluator]
-    N --> O{Evaluator Provider?}
-    O -->|OpenAI| P[providers/openai.call_openai_model]
-    O -->|Anthropic| Q[providers/anthropic.call_anthropic_model]
-    O -->|LMStudio| R1[providers/lmstudio.call_lmstudio_model]
-    
-    P --> R[Get Numeric Score 0.0-1.0]
-    Q --> R
-    R1 --> R
-    
-    R --> S[Collect Test Metrics]
-    S --> T{More Iterations?}
-    T -->|Yes| J
-    T -->|No| U[Calculate Question Averages]
-    
-    U --> V{More Questions?}
-    V -->|Yes| I
-    V -->|No| W[Calculate Model Averages]
-    
-    W --> X{More Models?}
-    X -->|Yes| H
-    X -->|No| Y[Compare All Models]
-    
-    Y --> Z[Determine Winner]
-    Z --> AA[Export to CSV]
-    AA --> BB[Display Results]
-    BB --> CC[End]
-    
-    subgraph "Data Sources"
-        DD[config.yml]
-        EE[test_data/*.txt]
-        DD --> B
-        EE --> E
-    end
-    
-    subgraph "External APIs"
-        FF[LMStudio Local API]
-        GG[OpenAI API]
-        HH[Anthropic API]
-        L --> FF
-        P --> GG
-        Q --> HH
-    end
-    
-    subgraph "Evaluation Modules"
-        II[simple_question.py]
-        JJ[rationale.py] 
-        KK[summarisation.py]
-        D --> II
-        D --> JJ
-        D --> KK
-    end
-    
-    subgraph "Output"
-        LL[test_results.csv]
-        MM[Console Report]
-        AA --> LL
-        BB --> MM
-    end
-    
-    style A fill:#e1f5fe
-    style CC fill:#c8e6c9
-    style DD fill:#fff3e0
-    style EE fill:#fff3e0
-    style LL fill:#f3e5f5
-    style MM fill:#f3e5f5
-```
-
-## Component Interaction Diagram
-
-```mermaid
-graph TB
-    subgraph "Configuration Layer"
-        A[config.yml]
-        B[evaluation_types.py]
-    end
-    
-    subgraph "Core Orchestration"
-        C[main.py]
-        D[utility.py]
-    end
-    
-    subgraph "Model Testing Layer"
-        E[test_subject.py]
-        F[LMStudio Server]
-    end
-    
-    subgraph "Evaluation Layer"
-        G[simple_question.py]
-        H[rationale.py]
-        I[summarisation.py]
-    end
-    
-    subgraph "Model Providers"
-        J[providers/openai.py]
-        K[providers/anthropic.py]
-        J1[providers/lmstudio.py]
-        L[OpenAI API]
-        M[Anthropic API]
-        M1[LMStudio Server]
-    end
-    
-    subgraph "Data & Results"
-        N[test_data/]
-        O[test_results.csv]
-    end
-    
-    A --> C
-    B --> C
-    C --> D
-    C --> E
-    C --> G
-    C --> H
-    C --> I
-    
-    E --> F
-    
-    G --> J
-    G --> K
-    G --> J1
-    H --> J  
-    H --> K
-    H --> J1
-    I --> J
-    I --> K
-    I --> J1
-    
-    J --> L
-    K --> M
-    J1 --> M1
-    
-    D --> N
-    C --> O
-    
-    style C fill:#ffeb3b
-    style A fill:#e3f2fd
-    style F fill:#e8f5e8
-    style L fill:#fce4ec
-    style M fill:#fce4ec
-    style O fill:#f3e5f5
-```
+This refactored architecture transforms a monolithic 275-line main function into a clean, maintainable, object-oriented system with clear separation of concerns and excellent extensibility.
